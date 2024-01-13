@@ -5,6 +5,7 @@ import math
 
 
 class Bot:
+    enemy_ship_scan_index = 0
     def __init__(self):
         print("Initializing your super mega duper bot")
 
@@ -57,9 +58,11 @@ class Bot:
 
         operatedRadarStation = [station for station in my_ship.stations.radars if station.operator is not None]
         for radar_station in operatedRadarStation:
-            actions.append(RadarScanAction(radar_station.id, random.choice(other_ships_ids)))
+            actions.append(RadarScanAction(radar_station.id, other_ships_ids[self.enemy_ship_scan_index]))
+            self.enemy_ship_scan_index += 1
+            if self.enemy_ship_scan_index >= len(other_ships_ids):
+                self.enemy_ship_scan_index = 0
 
-        # You can clearly do better than the random actions above! Have fun!
         return actions
 
     def get_debris_id(self, game_message: GameMessage):
