@@ -9,9 +9,62 @@ class Bot:
     def __init__(self):
         print("Initializing your super mega duper bot")
 
+
+    def get_next_move(self, game_message: GameMessage):
+        """
+        Here is where the magic happens, for now the moves are not very good. I bet you can do better ;)
+        """
+        actions = []
+
+        team_id = game_message.currentTeamId
+        my_ship = game_message.ships.get(team_id)
+        other_ships_ids = [shipId for shipId in game_message.shipsPositions.keys() if shipId != team_id]
+        # print(other_ships_ids)
+        # print(game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]])
+
+        # Find who's not doing anything and try to give them a job?
+        idle_crewmates = [crewmate for crewmate in my_ship.crew if
+                          crewmate.currentStation is None and crewmate.destination is None]
+
+        if len(idle_crewmates) == len(my_ship.crew):
+            self.begin_allowing_cremates(my_ship, actions)
+
+        # Now crew members at stations should do something!
+        operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
+        for turret_station in operatedTurretStations:
+            if turret_station.turretType == "NORMAL":
+                # Charge the turret.
+                actions.append(TurretChargeAction(turret_station.id))
+                # Aim the turret itself.
+                actions.append(TurretLookAtAction(turret_station.id,self.get_debris_interception_point(self.get_debris_id(game_message),turret_station, game_message)))
+                # Shoot!
+                actions.append(TurretShootAction(turret_station.id))
+            elif turret_station.turretType == "EMP":
+
+                # Charge the turret.
+                actions.append(TurretChargeAction(turret_station.id))
+                    # Aim the turret itself.
+                actions.append(TurretLookAtAction(turret_station.id, game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]]))
+                    # Shoot!
+                actions.append(TurretShootAction(turret_station.id))
+
+
+        # operatedHelmStation = [station for station in my_ship.stations.helms if station.operator is not None]
+        # if operatedHelmStation:
+        #     actions.append(ShipRotateAction(random.uniform(0, 360)))
+
+        operatedRadarStation = [station for station in my_ship.stations.radars if station.operator is not None]
+        for radar_station in operatedRadarStation:
+            actions.append(RadarScanAction(radar_station.id, other_ships_ids[self.enemy_ship_scan_index]))
+
+        self.enemy_ship_scan_index += 1
+        if self.enemy_ship_scan_index >= len(other_ships_ids):
+            self.enemy_ship_scan_index = 0
+        return actions
+
     def get_to_station(self, crewmate, station_to_move_to):
         return CrewMoveAction(crewmate.id, station_to_move_to.stationPosition)
-    
+
     def get_min_distance_station(self, stations):
         min_distance = float('inf')
         min_station = None
@@ -23,72 +76,18 @@ class Bot:
                 min_station = station
 
         return min_station
-    
-    def begin_allowing_cremates(self, my_ship):
-        actions = []
+
+    def begin_allowing_cremates(self, my_ship, actions):
         for crewmate in my_ship.crew:
             visitable_stations = crewmate.distanceFromStations.shields + crewmate.distanceFromStations.turrets + crewmate.distanceFromStations.helms + crewmate.distanceFromStations.radars
-            
+
             station_to_move_to = self.get_min_distance_station(crewmate.distanceFromStations.turrets)
             actions.append(self.get_to_station(crewmate, station_to_move_to))
-        return actions
-
-
-    def get_next_move(self, game_message: GameMessage):
-        """
-        Here is where the magic happens, for now the moves are not very good. I bet you can do better ;)
-        """
-        actions = []
-
-        team_id = game_message.currentTeamId
-        my_ship = game_message.ships.get(team_id)
-        other_ships_ids = [shipId for shipId in game_message.shipsPositions.keys() if shipId != team_id]
-
-        # Find who's not doing anything and try to give them a job?
-        idle_crewmates = [crewmate for crewmate in my_ship.crew if
-                          crewmate.currentStation is None and crewmate.destination is None]
-
-        if len(idle_crewmates) == len(my_ship.crew):
-            actions = self.begin_allowing_cremates(my_ship)
-
-        # Now crew members at stations should do something!
-        operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
-        for turret_station in operatedTurretStations:
-            if turret_station.turretType == "ROCKET":
-                actions.append([
-                    # Charge the turret.
-                    TurretChargeAction(turret_station.id),
-                    # Aim the turret itself.
-                    TurretLookAtAction(turret_station.id,
-                                       self.get_debris_interception_point(self.get_debris_id(game_message),
-                                                                          turret_station, game_message)),
-                    # Shoot!
-                    TurretShootAction(turret_station.id)
-                ])
-            elif turret_station.turretType == "LASER":
-                actions.append([
-                    # Charge the turret.
-                    TurretChargeAction(turret_station.id),
-                    # Aim the turret itself.
-                    TurretLookAtAction(turret_station.id, game_message.ships.get(other_ships_ids[self.enemy_ship_scan_index]).worldPosition),
-                    # Shoot!
-                    TurretShootAction(turret_station.id)
-                ])
-
-        # operatedHelmStation = [station for station in my_ship.stations.helms if station.operator is not None]
-        # if operatedHelmStation:
-        #     actions.append(ShipRotateAction(random.uniform(0, 360)))
-
-        operatedRadarStation = [station for station in my_ship.stations.radars if station.operator is not None]
-        for radar_station in operatedRadarStation:
-            actions.append(RadarScanAction(radar_station.id, other_ships_ids[self.enemy_ship_scan_index]))
-            self.enemy_ship_scan_index += 1
-            if self.enemy_ship_scan_index >= len(other_ships_ids):
-                self.enemy_ship_scan_index = 0
-        return actions
 
     def get_debris_id(self, game_message: GameMessage):
         debris = [debris for debris in game_message.debris]
+        if len(debris) == 0:
+            return None
         return random.choice(debris)
 
     def smallestWhichIsntNegativeOrNan(self, numbers):
@@ -101,6 +100,8 @@ class Bot:
         return smallest
 
     def get_debris_interception_point(self, target: Debris, turret: TurretStation, game_message: GameMessage):
+        if target is None:
+            return Vector(0, 0)
         P0 = target.position
         # P0 = Vector(meteor.position.x + meteor.velocity.x, meteor.position.y + meteor.velocity.y)
         V0 = target.velocity
