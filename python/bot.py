@@ -6,10 +6,10 @@ import math
 
 class Bot:
     enemy_ship_scan_index = 0
-    ship_helms = []           #helm, radar
+    ship_helms = []  # helm, radar
     ship_radars = []
-    ship_shield_station = []    #shield
-    ship_weapons = []           #turret
+    ship_shield_station = []  # shield
+    ship_weapons = []  # turret
     ship_weapons_type = []
     radarInterval = 100
 
@@ -30,68 +30,43 @@ class Bot:
         print("Initializing your super mega duper bot")
 
     def focus_enemy(self):
-        return self.get_crewmate_to_station(self.ship_helms[0].gridPosition, 2, 2)
+        return self.get_crewmate_to_station(self.ship_helms[0], 2, 2)
 
     def go_back_to_work(self, crewmate, my_ship):
         return CrewMoveAction(crewmate, self.get_station(my_ship.stations.turrets[0].id, my_ship.stations.turrets))
 
-    def get_to_station(self, crewmate, vector_station_to_move_to):
-        return CrewMoveAction(crewmate.id, vector_station_to_move_to)
+    def get_to_station(self, crewmate, station):
+        return CrewMoveAction(crewmate.id, station.gridPosition)
 
-    def get_station(self, id, stations):
-        for station in stations:
-            if(station.id == id):
-                return station
-        return None
-
-    def get_min_distance_turret_type(self, stationDistances, my_ship, occupiedStationIds):
-        min_distance = float('inf')
-        min_station = None
-
+    def get_next_turret_to_assign(self, my_ship, occupiedStationIds, stations_no_crewmate):
         for turret_type in self.turret_priority:
-            for stationDistance in stationDistances:
-                distance = stationDistance.distance
-                if distance < min_distance and turret_type == self.get_station(stationDistance.stationId, my_ship.stations.turrets).turretType and occupiedStationIds.count(stationDistance.stationId) == 0:
+            for station in my_ship.stations.turrets:
+                if turret_type == station.turretType and occupiedStationIds.count(station.id) == 0 and stations_no_crewmate.count(station) == 0:
                     if turret_type == TurretType.EMP and self.EMP_occupied == False:
-                        min_station = stationDistance
                         self.EMP_occupied = True
-                        return min_station
+                        return station
                     elif turret_type != TurretType.EMP:
-                        min_station = stationDistance
-                        return min_station
+                        return station
         return None
-
-    def get_min_distance_station(self, stationDistances, occupiedStationIds):
-        min_distance = float('inf')
-        min_station = None
-
-        for stationDistance in stationDistances:
-            distance = stationDistance.distance
-            if distance < min_distance and occupiedStationIds.count(stationDistance.stationId) == 0:
-                min_distance = distance
-                min_station = stationDistance
-
-        return min_station
 
     def begin_allowing_crewmates(self, my_ship, actions):
         occupiedStationIds = []
         occupiedTurretCount = 0
         occupiedShieldCount = 0
+        stations_no_crewmate = []
 
-        for crewmate in my_ship.crew:
-            if occupiedTurretCount < 3:
-                station_to_move_to = self.get_min_distance_turret_type(crewmate.distanceFromStations.turrets, my_ship, occupiedStationIds)
-               # actions.append(self.get_to_station(crewmate, station_to_move_to))
-                actions.append(self.get_crewmate_to_station(station_to_move_to.stationPosition,0,1))
-                occupiedStationIds.append(station_to_move_to.stationId)
-                occupiedTurretCount += 1
-            elif occupiedShieldCount < 1:
-                station_to_move_to = self.get_min_distance_station(crewmate.distanceFromStations.shields, occupiedStationIds)
-                actions.append(self.get_crewmate_to_station(station_to_move_to.stationPosition, 0, 1))
-                #actions.append(self.get_to_station(crewmate, station_to_move_to))
-                occupiedStationIds.append(station_to_move_to.stationId)
-                occupiedShieldCount += 1
-
+        while self.idle_crewmates:
+            if occupiedTurretCount < 4:
+                station_to_move_to = self.get_next_turret_to_assign(my_ship, occupiedStationIds, stations_no_crewmate)
+                print(station_to_move_to)
+                # actions.append(self.get_to_station(crewmate, station_to_move_to))
+                crewmate_move_action = self.get_crewmate_to_station(station_to_move_to, 0, 1)
+                if crewmate_move_action is not None:
+                    actions.append(crewmate_move_action)
+                    occupiedStationIds.append(station_to_move_to.id)
+                    occupiedTurretCount += 1
+                else:
+                    stations_no_crewmate.append(station_to_move_to)
 
     def get_next_move(self, game_message: GameMessage):
         """
@@ -113,18 +88,13 @@ class Bot:
             self.first_run = False
             # Find who's not doing anything and try to give them a job?
             self.idle_crewmates = [crewmate for crewmate in my_ship.crew if
-                          crewmate.currentStation is None and crewmate.destination is None]
-
-
-
-        if len(self.idle_crewmates) == len(my_ship.crew):
+                                   crewmate.currentStation is None and crewmate.destination is None]
             self.begin_allowing_crewmates(my_ship, actions)
 
         # Check radar if someone is available every x ticks
-        if(game_message.currentTickNumber % self.radarInterval == 0):
-            actions.append(self.get_crewmate_to_station(self.ship_radars[0].gridPosition, 2, 2))
+        # if (game_message.currentTickNumber % self.radarInterval == 0):
+        #     actions.append(self.get_crewmate_to_station(self.ship_radars[0], 2, 2))
 
-        # Now crew members at stations should do something!
         operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
         for turret_station in operatedTurretStations:
             if turret_station.turretType == "NORMAL":
@@ -132,7 +102,8 @@ class Bot:
                     pass
                 else:
                     # Aim the turret
-                    actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(self.get_debris_id(game_message, my_ship), turret_station, game_message,other_ships_ids)))
+                    actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(
+                        self.get_debris_id(game_message, my_ship), turret_station, game_message, other_ships_ids)))
                     # Shoot!
                     actions.append(TurretShootAction(turret_station.id))
 
@@ -192,9 +163,10 @@ class Bot:
 
         operatedRadarStation = [station for station in my_ship.stations.radars if station.operator is not None]
 
-        if(self.activated_radar_last_tick):
+        if (self.activated_radar_last_tick):
             for radar_station in operatedRadarStation:
-                while game_message.ships[other_ships_ids[self.enemy_ship_scan_index][5: len(other_ships_ids[self.enemy_ship_scan_index]) - 2]].currentHealth <= 0:
+                while game_message.ships[other_ships_ids[self.enemy_ship_scan_index][
+                                         5: len(other_ships_ids[self.enemy_ship_scan_index]) - 2]].currentHealth <= 0:
                     self.enemy_ship_scan_index = self.enemy_ship_scan_index + 1 % len(game_message.other_ships_ids)
                 self.focus_enemy()
                 print("gobacktowork")
@@ -207,34 +179,37 @@ class Bot:
 
         operatedHelmStation = [station for station in my_ship.stations.helms if station.operator is not None]
         for helm_station in operatedHelmStation:
-            actions.append(ShipLookAtAction(helm_station.id, game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]]))
-            if(self.angleLastTick == 999):
+            actions.append(ShipLookAtAction(helm_station.id,
+                                            game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]]))
+            if (self.angleLastTick == 999):
                 self.angleLastTick = my_ship.orientationDegrees
-            elif(self.angleLastTick != my_ship.orientationDegrees):
+            elif (self.angleLastTick != my_ship.orientationDegrees):
                 self.angleLastTick = my_ship.orientationDegrees
             else:
                 self.go_back_to_work(helm_station.operator, my_ship)
                 self.angleLastTick = 999
         return actions
 
-# Logique de tir des débris
+    # Logique de tir des débris
     def get_debris_id(self, game_message: GameMessage, my_ship):
         debris = [debris for debris in game_message.debris if debris.debrisType != DebrisType.Small]
         rockets = [rockets for rockets in game_message.rockets]
         if len(debris) == 0:
             return None
-        
-        #TODO: Besoin de 2 balles, donc faire attention
+
+        # TODO: Besoin de 2 balles, donc faire attention
         for rocket in rockets:
             for t in range(300):
-                distance = ((rocket.position.x + rocket.velocity.x * t - my_ship.worldPosition.x) ** 2 + (rocket.position.y + rocket.velocity.y * t - my_ship.worldPosition.y) ** 2) ** 0.5
+                distance = ((rocket.position.x + rocket.velocity.x * t - my_ship.worldPosition.x) ** 2 + (
+                        rocket.position.y + rocket.velocity.y * t - my_ship.worldPosition.y) ** 2) ** 0.5
 
                 if distance <= rocket.radius + game_message.constants.ship.stations.shield.shieldRadius:
                     return debri
 
         for debri in debris:
             for t in range(300):
-                distance = ((debri.position.x + debri.velocity.x * t - my_ship.worldPosition.x) ** 2 + (debri.position.y + debri.velocity.y * t - my_ship.worldPosition.y) ** 2) ** 0.5
+                distance = ((debri.position.x + debri.velocity.x * t - my_ship.worldPosition.x) ** 2 + (
+                        debri.position.y + debri.velocity.y * t - my_ship.worldPosition.y) ** 2) ** 0.5
 
                 if distance <= debri.radius + game_message.constants.ship.stations.shield.shieldRadius:
                     return debri
@@ -248,10 +223,11 @@ class Bot:
             return 0
         return smallest
 
-    def get_debris_interception_point(self, target: Debris, turret: TurretStation, game_message: GameMessage, other_ships_ids):
+    def get_debris_interception_point(self, target: Debris, turret: TurretStation, game_message: GameMessage,
+                                      other_ships_ids):
         if target is None:
             return game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]]
-                        
+
         P0 = target.position
         # P0 = Vector(meteor.position.x + meteor.velocity.x, meteor.position.y + meteor.velocity.y)
         V0 = target.velocity
@@ -292,10 +268,8 @@ class Bot:
 
         self.ship_weapons_type = set(types)
 
-
     def do_we_have_that_weapon(self, turretType):
         return turretType in self.ship_weapons_type
-
 
     # def shield_critical(self, my_ship: Ship):
     #     return my_ship.currentShield <= 0
@@ -304,55 +278,82 @@ class Bot:
     # #     if self.shield_critical(my_ship):
     # #         self.get_to_station(self.)
 
-    def get_idle_crewmate(self):
+    def get_idle_crewmate(self, station):
         if self.idle_crewmates:
-            return self.idle_crewmates.pop(0)
-        else:
-            return False
+            for crewmate in self.idle_crewmates:
+                if self.can_crewmate_go_to_station(crewmate, station):
+                    self.idle_crewmates.remove(crewmate)
+                    return crewmate
+        print("No idle crewmate can go to that station")
+        return False
 
-    def get_available_crewmate(self):
-        idle_crewmate = self.get_idle_crewmate()
+    def get_available_crewmate(self, station):
+        idle_crewmate = self.get_idle_crewmate(station)
         if idle_crewmate:
             return idle_crewmate
 
         elif self.available_crewmates:
-          return self.available_crewmates.pop(0)
+            for crewmate in self.available_crewmates:
+                if self.can_crewmate_go_to_station(crewmate, station):
+                    self.available_crewmates.remove(crewmate)
+                    return crewmate
 
         else:
+            print("No available crewmate can go to that station")
             return False
 
-    def get_fixed_crewmate(self):
-        available_crewmate = self.get_available_crewmate()
+    def get_fixed_crewmate(self, station):
+        available_crewmate = self.get_available_crewmate(station)
         if available_crewmate:
             return available_crewmate
 
+        elif self.fixed_crewmates:
+            for crewmate in self.fixed_crewmates:
+                if self.can_crewmate_go_to_station(crewmate, station):
+                    self.fixed_crewmates.remove(crewmate)
+                    return crewmate
         else:
-            return self.fixed_crewmates.pop(0)
+            print("No fixed crewmate can go to that station")
+            return False
+
+    def can_crewmate_go_to_station(self, crewmate, station):
+        for turret in crewmate.distanceFromStations.turrets:
+            if turret.stationId == station.id and turret.distance < 50:
+                return True
+        for radar in crewmate.distanceFromStations.radars:
+            if radar.stationId == station.id and radar.distance < 50:
+                return True
+        for shield in crewmate.distanceFromStations.shields:
+            if shield.stationId == station.id and shield.distance < 50:
+                return True
+        for helm in crewmate.distanceFromStations.helms:
+            if helm.stationId == station.id and helm.distance < 50:
+                return True
+        return False
 
     def get_crewmate_to_station(self, station, priority, station_priority):
-        print("priority " + str(station_priority) )
-        
         if priority == 0:
-            crewmate = self.get_idle_crewmate()
-
+            crewmate = self.get_idle_crewmate(station)
+            if not crewmate: return None
             self.adjust_priority(crewmate, station_priority)
             return self.get_to_station(crewmate, station)
-
         elif priority == 1:
-
-            crewmate = self.get_available_crewmate()
-            self.station_left_unoccupied = crewmate.currentStation
-            self.adjust_priority(crewmate, station_priority)
-            return self.get_to_station(crewmate, station)
+            if self.get_available_crewmate(station):
+                crewmate = self.get_available_crewmate(station)
+                self.station_left_unoccupied = crewmate.currentStation
+                self.adjust_priority(crewmate, station_priority)
+                return self.get_to_station(crewmate, station)
+            else:
+                return None
 
         elif priority == 2:
-            crewmate = self.get_fixed_crewmate()
-            self.station_left_unoccupied = crewmate.currentStation
-            self.adjust_priority(crewmate, station_priority)
-            return self.get_to_station(crewmate, station)
-    #def send_crewmate_to_station(self,crewmate, station, station_priority):
-
-
+            if self.get_fixed_crewmate(station):
+                crewmate = self.get_fixed_crewmate(station)
+                self.station_left_unoccupied = crewmate.currentStation
+                self.adjust_priority(crewmate, station_priority)
+                return self.get_to_station(crewmate, station)
+            else:
+                return None
 
     def adjust_priority(self, crewmate, station_priority):
         if station_priority == 0:
