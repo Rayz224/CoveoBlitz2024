@@ -152,7 +152,21 @@ class Bot:
                 else:
                     # Shoot!
                     actions.append(TurretShootAction(turret_station.id))
-
+            elif turret_station.turretType == "CANNON":
+                if turret_station.charge < 0:
+                    pass
+                elif turret_station.charge == 0:
+                    # Aim the turret
+                    actions.append(TurretLookAtAction(turret_station.id, game_message.shipsPositions[
+                        other_ships_ids[self.enemy_ship_scan_index]]))
+                    # Charge the turret.
+                    actions.append(TurretChargeAction(turret_station.id))
+                elif 0 < turret_station.charge < 20:
+                    # Charge the turret.
+                    actions.append(TurretChargeAction(turret_station.id))
+                else:
+                    # Shoot!
+                    actions.append(TurretShootAction(turret_station.id))
 
         # operatedHelmStation = [station for station in my_ship.stations.helms if station.operator is not None]
         # if operatedHelmStation:
