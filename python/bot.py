@@ -16,6 +16,9 @@ class Bot:
     turret_priority = [TurretType.Cannon, TurretType.EMP, TurretType.Normal, TurretType.Sniper, TurretType.Fast]
     EMP_occupied = False
 
+    current_game_message = None
+    current_my_ship = None
+
     fixed_crewmates = []
     available_crewmates = []
     idle_crewmates = []
@@ -33,7 +36,7 @@ class Bot:
         return self.get_crewmate_to_station(self.ship_helms[0], 2, 2)
 
     def go_back_to_work(self, crewmate, my_ship):
-        return CrewMoveAction(crewmate, self.get_station(my_ship.stations.turrets[0].id, my_ship.stations.turrets))
+        return CrewMoveAction(crewmate, self.get_station(self.station_left_unoccupied, my_ship.stations.turrets + my_ship.stations.shields))
 
     def get_to_station(self, crewmate, station):
         return CrewMoveAction(crewmate.id, station.gridPosition)
@@ -76,10 +79,12 @@ class Bot:
         print(self.available_crewmates)
         print(self.idle_crewmates)"""
 
+        self.current_game_message = game_message
         actions = []
 
         team_id = game_message.currentTeamId
         my_ship = game_message.ships.get(team_id)
+        self.current_my_ship = my_ship
         other_ships_ids = [shipId for shipId in game_message.shipsPositions.keys() if shipId != team_id]
 
         if self.first_run:
@@ -162,8 +167,8 @@ class Bot:
                     actions.append(TurretShootAction(turret_station.id))
 
         operatedRadarStation = [station for station in my_ship.stations.radars if station.operator is not None]
-
-        if (self.activated_radar_last_tick):
+        isGoingBackToWork = False
+        if(self.activated_radar_last_tick):
             for radar_station in operatedRadarStation:
                 while game_message.ships[other_ships_ids[self.enemy_ship_scan_index][
                                          5: len(other_ships_ids[self.enemy_ship_scan_index]) - 2]].currentHealth <= 0:
@@ -172,10 +177,13 @@ class Bot:
                 print("gobacktowork")
                 actions.append(self.go_back_to_work(radar_station.operator, my_ship))
                 self.activated_radar_last_tick = False
+                isGoingBackToWork = True
 
-        for radar_station in operatedRadarStation:
-            actions.append(RadarScanAction(radar_station.id, other_ships_ids[self.enemy_ship_scan_index]))
-            self.activated_radar_last_tick = True
+        if(not isGoingBackToWork):
+            for radar_station in operatedRadarStation:
+                print("radar")
+                actions.append(RadarScanAction(radar_station.id, other_ships_ids[self.enemy_ship_scan_index]))
+                self.activated_radar_last_tick = True
 
         operatedHelmStation = [station for station in my_ship.stations.helms if station.operator is not None]
         for helm_station in operatedHelmStation:
