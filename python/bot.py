@@ -14,6 +14,10 @@ class Bot:
     turret_priority = [TurretType.EMP, TurretType.Cannon, TurretType.Sniper, TurretType.Fast, TurretType.Normal]
     EMP_occupied = False
 
+    fixed_crewmates = []
+    available_crewmates = []
+    idle_crewmates = []
+
     first_run = True
 
     def __init__(self):
@@ -70,12 +74,14 @@ class Bot:
         for crewmate in my_ship.crew:
             if occupiedTurretCount < 3:
                 station_to_move_to = self.get_min_distance_turret_type(crewmate.distanceFromStations.turrets, my_ship, occupiedStationIds)
-                actions.append(self.get_to_station(crewmate, station_to_move_to))
+               # actions.append(self.get_to_station(crewmate, station_to_move_to))
+                actions.append(self.get_crewmate_to_station(station_to_move_to,0,2))
                 occupiedStationIds.append(station_to_move_to.stationId)
                 occupiedTurretCount += 1
             elif occupiedShieldCount < 1:
                 station_to_move_to = self.get_min_distance_station(crewmate.distanceFromStations.shields, occupiedStationIds)
-                actions.append(self.get_to_station(crewmate, station_to_move_to))
+                actions.append(self.get_crewmate_to_station(station_to_move_to, 0, 2))
+                #actions.append(self.get_to_station(crewmate, station_to_move_to))
                 occupiedStationIds.append(station_to_move_to.stationId)
                 occupiedShieldCount += 1
             print(occupiedTurretCount)
@@ -98,11 +104,14 @@ class Bot:
             self.first_run = False
 
         # Find who's not doing anything and try to give them a job?
-        idle_crewmates = [crewmate for crewmate in my_ship.crew if
+        self.idle_crewmates = [crewmate for crewmate in my_ship.crew if
                           crewmate.currentStation is None and crewmate.destination is None]
 
-        if len(idle_crewmates) == len(my_ship.crew):
+
+        if len(self.idle_crewmates) == len(my_ship.crew):
             self.begin_allowing_crewmates(my_ship, actions)
+
+
 
         # Now crew members at stations should do something!
         operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
@@ -248,5 +257,67 @@ class Bot:
     def do_we_have_that_weapon(self, turretType):
         return turretType in self.ship_weapons_type
 
+
+    # def shield_critical(self, my_ship: Ship):
+    #     return my_ship.currentShield <= 0
+    #
+    # # def shield_gestion(self, my_ship: Ship):
+    # #     if self.shield_critical(my_ship):
+    # #         self.get_to_station(self.)
+
     def get_to_station(self, crewmate, station_to_move_to):
         return CrewMoveAction(crewmate.id, station_to_move_to.stationPosition)
+
+
+    def get_idle_crewmate(self):
+        return self.idle_crewmates.pop(0)
+    def get_available_crewmate(self):
+        if self.get_idle_crewmate():
+            return self.idle_crewmates.pop(0)
+
+        elif self.available_crewmates:
+          return self.available_crewmates.pop(0)
+
+        else:
+            return False
+
+    def get_fixed_crewmate(self):
+        if self.get_available_crewmate():
+            return self.get_available_crewmate()
+
+        else:
+            return self.fixed_crewmates.pop(0)
+
+    def get_crewmate_to_station(self, station, priority, station_priority):
+        if priority == 0:
+            crewmate = self.get_idle_crewmate()
+
+            self.adjust_priority(crewmate, station_priority)
+            return self.get_to_station(crewmate, station)
+
+        elif priority == 1:
+
+            crewmate = self.get_available_crewmate()
+
+            self.adjust_priority(crewmate, station_priority)
+            return self.get_to_station(crewmate, station)
+
+        elif priority == 2:
+            crewmate = self.get_fixed_crewmate()
+
+            self.adjust_priority(crewmate, station_priority)
+            return self.get_to_station(crewmate, station)
+
+    #def send_crewmate_to_station(self,crewmate, station, station_priority):
+
+
+
+    def adjust_priority(self, crewmate, station_priority):
+        if station_priority == 0:
+            self.idle_crewmates.append(crewmate)
+
+        elif station_priority == 1:
+            self.available_crewmates.append(crewmate)
+
+        elif station_priority == 2:
+            self.fixed_crewmates.append(crewmate)
