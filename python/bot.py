@@ -6,6 +6,13 @@ import math
 
 class Bot:
     enemy_ship_scan_index = 0
+    ship_utility = []           #helm, radar
+    ship_shield_station = []    #shield
+    ship_weapons = []           #turret
+    ship_weapons_type = []
+
+    first_run = True
+
 
     def __init__(self):
         print("Initializing your super mega duper bot")
@@ -72,6 +79,18 @@ class Bot:
         team_id = game_message.currentTeamId
         my_ship = game_message.ships.get(team_id)
         other_ships_ids = [shipId for shipId in game_message.shipsPositions.keys() if shipId != team_id]
+
+        if self.first_run:
+            self.get_ship_blueprint(my_ship)
+            self.get_ship_weapons_type(my_ship)
+            self.first_run = False
+
+
+        actions = []
+
+
+        # print(other_ships_ids)
+        # print(game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]])
 
         # Find who's not doing anything and try to give them a job?
         idle_crewmates = [crewmate for crewmate in my_ship.crew if
@@ -166,3 +185,25 @@ class Bot:
         interception_point = Vector(p0.x + (t * v0.x), p0.y + (t * v0.y))
 
         return interception_point
+
+    def get_ship_blueprint(self, my_ship: Ship):
+        self.ship_utility = my_ship.stations.helms
+        self.ship_utility.append(my_ship.stations.radars)
+
+        self.ship_shield_station = my_ship.stations.shields
+
+        self.ship_weapons = my_ship.stations.turrets
+
+    def get_ship_weapons_type(self, my_ship: Ship):
+        types = []
+        for weapon in my_ship.stations.turrets:
+            types.append(weapon.turretType)
+
+        self.ship_weapons_type = set(types)
+
+
+    def do_we_have_that_weapon(self, turretType):
+        return turretType in self.ship_weapons_type
+
+    def get_to_station(self, crewmate, station_to_move_to):
+        return CrewMoveAction(crewmate.id, station_to_move_to.stationPosition)
