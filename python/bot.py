@@ -26,7 +26,7 @@ class Bot:
                 return station
         raise Exception("ds")
         return None
-    
+
     def get_min_distance_turret_type(self, stationDistances, my_ship, turret_types, occupiedStationIds):
         min_distance = float('inf')
         min_station = None
@@ -38,7 +38,7 @@ class Bot:
                 min_distance = distance
                 min_station = stationDistance
         return min_station
-    
+
     def get_min_distance_station(self, stationDistances, occupiedStationIds):
         min_distance = float('inf')
         min_station = None
@@ -50,14 +50,14 @@ class Bot:
                 min_station = stationDistance
 
         return min_station
-    
+
     def begin_allowing_crewmates(self, my_ship, actions):
         occupiedStationIds = []
         occupiedTurretCount = 0
         occupiedShieldCount = 0
         for crewmate in my_ship.crew:
             if occupiedTurretCount < 2:
-                station_to_move_to = self.get_min_distance_turret_type(crewmate.distanceFromStations.turrets, my_ship, [TurretType.Normal, TurretType.EMP], occupiedStationIds)
+                station_to_move_to = self.get_min_distance_turret_type(crewmate.distanceFromStations.turrets, my_ship, [TurretType.Sniper, TurretType.EMP], occupiedStationIds)
                 actions.append(self.get_to_station(crewmate, station_to_move_to))
                 occupiedStationIds.append(station_to_move_to.stationId)
                 occupiedTurretCount += 1
@@ -122,6 +122,28 @@ class Bot:
                     # Charge the turret.
                     actions.append(TurretChargeAction(turret_station.id))
                 elif 0 < turret_station.charge < 100:
+                    # Charge the turret.
+                    actions.append(TurretChargeAction(turret_station.id))
+                else:
+                    # Shoot!
+                    actions.append(TurretShootAction(turret_station.id))
+            elif turret_station.turretType == "FAST":
+
+                if turret_station.charge < 0:
+                    pass
+                else:
+                    # Shoot!
+                    actions.append(TurretShootAction(turret_station.id))
+            elif turret_station.turretType == "SNIPER":
+                if turret_station.charge < 0:
+                    pass
+                elif turret_station.charge == 0:
+                    # Aim the turret
+                    actions.append(TurretLookAtAction(turret_station.id, game_message.shipsPositions[
+                        other_ships_ids[self.enemy_ship_scan_index]]))
+                    # Charge the turret.
+                    actions.append(TurretChargeAction(turret_station.id))
+                elif 0 < turret_station.charge < 75:
                     # Charge the turret.
                     actions.append(TurretChargeAction(turret_station.id))
                 else:
