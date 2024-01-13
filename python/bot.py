@@ -11,8 +11,9 @@ class Bot:
     ship_weapons = []           #turret
     ship_weapons_type = []
 
-    first_run = True
+    turret_priority = [TurretType.EMP, TurretType.Normal, TurretType.Sniper, TurretType.Fast, TurretType.Cannon]
 
+    first_run = True
 
     def __init__(self):
         print("Initializing your super mega duper bot")
@@ -27,17 +28,21 @@ class Bot:
         raise Exception("ds")
         return None
     
-    def get_min_distance_turret_type(self, stationDistances, my_ship, turret_types, occupiedStationIds):
+    def get_min_distance_turret_type(self, stationDistances, my_ship, occupiedStationIds):
         min_distance = float('inf')
         min_station = None
 
-        for stationDistance in stationDistances:
-            distance = stationDistance.distance
-            print(self.get_station(stationDistance.stationId, my_ship.stations.turrets).turretType)
-            if distance < min_distance and turret_types.count(self.get_station(stationDistance.stationId, my_ship.stations.turrets).turretType) >= 1 and occupiedStationIds.count(stationDistance.stationId) == 0:
-                min_distance = distance
-                min_station = stationDistance
-        return min_station
+        for turret_type in self.turret_priority:
+            print("yo")
+            print(turret_type)
+            for stationDistance in stationDistances:
+                distance = stationDistance.distance
+                print(self.get_station(stationDistance.stationId, my_ship.stations.turrets).turretType)
+                if distance < min_distance and turret_type == self.get_station(stationDistance.stationId, my_ship.stations.turrets).turretType and occupiedStationIds.count(stationDistance.stationId) == 0:
+                    min_distance = distance
+                    min_station = stationDistance
+                    return min_station
+        return None
     
     def get_min_distance_station(self, stationDistances, occupiedStationIds):
         min_distance = float('inf')
@@ -55,13 +60,16 @@ class Bot:
         occupiedStationIds = []
         occupiedTurretCount = 0
         occupiedShieldCount = 0
+
+
+
         for crewmate in my_ship.crew:
-            if occupiedTurretCount < 2:
-                station_to_move_to = self.get_min_distance_turret_type(crewmate.distanceFromStations.turrets, my_ship, [TurretType.Normal, TurretType.EMP], occupiedStationIds)
+            if occupiedTurretCount < 3:
+                station_to_move_to = self.get_min_distance_turret_type(crewmate.distanceFromStations.turrets, my_ship, occupiedStationIds)
                 actions.append(self.get_to_station(crewmate, station_to_move_to))
                 occupiedStationIds.append(station_to_move_to.stationId)
                 occupiedTurretCount += 1
-            elif occupiedShieldCount < 2:
+            elif occupiedShieldCount < 1:
                 station_to_move_to = self.get_min_distance_station(crewmate.distanceFromStations.shields, occupiedStationIds)
                 actions.append(self.get_to_station(crewmate, station_to_move_to))
                 occupiedStationIds.append(station_to_move_to.stationId)
