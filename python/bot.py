@@ -196,9 +196,10 @@ class Bot:
 
         if(self.activated_radar_last_tick):
             while game_message.ships[other_ships_ids[self.enemy_ship_scan_index]].currentHealth <= 0:
-                self.enemy_ship_scan_index = self.enemy_ship_scan_index + 1 % len(game_message.ships)
+                self.enemy_ship_scan_index = self.enemy_ship_scan_index + 1 % len(game_message.other_ships_ids)
             self.focus_enemy()
             self.go_back_to_work(operatedRadarStation.operator)
+            self.activated_radar_last_tick = False
 
         operatedHelmStation = [station for station in my_ship.stations.radars if station.operator is not None]
         for helm_station in operatedHelmStation:
