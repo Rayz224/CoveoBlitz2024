@@ -13,7 +13,7 @@ class Bot:
     ship_weapons_type = []
     radarInterval = 200
 
-    turret_priority = [TurretType.EMP, TurretType.Cannon, TurretType.Sniper, TurretType.Fast, TurretType.Normal]
+    turret_priority = [TurretType.Cannon, TurretType.EMP, TurretType.Normal, TurretType.Sniper, TurretType.Fast]
     EMP_occupied = False
 
     fixed_crewmates = []
@@ -131,9 +131,7 @@ class Bot:
                     pass
                 else:
                     # Aim the turret
-                    # actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(self.get_debris_id(game_message), turret_station, game_message)))
-                    actions.append(TurretLookAtAction(turret_station.id, game_message.shipsPositions[
-                        other_ships_ids[self.enemy_ship_scan_index]]))
+                    actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(self.get_debris_id(game_message, my_ship), turret_station, game_message,other_ships_ids)))
                     # Shoot!
                     actions.append(TurretShootAction(turret_station.id))
 
@@ -236,9 +234,10 @@ class Bot:
             return 0
         return smallest
 
-    def get_debris_interception_point(self, target: Debris, turret: TurretStation, game_message: GameMessage):
+    def get_debris_interception_point(self, target: Debris, turret: TurretStation, game_message: GameMessage, other_ships_ids):
         if target is None:
-            return Vector(0, 0)
+            return game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]]
+                        
         P0 = target.position
         # P0 = Vector(meteor.position.x + meteor.velocity.x, meteor.position.y + meteor.velocity.y)
         V0 = target.velocity
