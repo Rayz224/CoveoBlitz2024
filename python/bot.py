@@ -115,7 +115,7 @@ class Bot:
             self.crewmate_at_shield = True
         #
         if my_ship.currentShield == 150 and self.crewmate_at_shield:
-            actions.append
+            actions.append(self.go_back_to_work(self.ship_shield_station[0].operator, my_ship))
 
         operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
         for turret_station in operatedTurretStations:
