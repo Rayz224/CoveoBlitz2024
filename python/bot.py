@@ -112,9 +112,9 @@ class Bot:
         for radar_station in operatedRadarStation:
             actions.append(RadarScanAction(radar_station.id, other_ships_ids[self.enemy_ship_scan_index]))
 
-        self.enemy_ship_scan_index += 1
-        if self.enemy_ship_scan_index >= len(other_ships_ids):
-            self.enemy_ship_scan_index = 0
+        # self.enemy_ship_scan_index += 1
+        # if self.enemy_ship_scan_index >= len(other_ships_ids):
+        #     self.enemy_ship_scan_index = 0
         return actions
 
 # Logique de tir des débris
@@ -160,6 +160,3 @@ class Bot:
         interception_point = Vector(p0.x + (t * v0.x), p0.y + (t * v0.y))
 
         return interception_point
-
-    def get_to_station(self, crewmate, station_to_move_to):
-        return CrewMoveAction(crewmate.id, station_to_move_to.stationPosition)
