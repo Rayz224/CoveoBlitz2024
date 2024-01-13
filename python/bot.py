@@ -270,10 +270,16 @@ class Bot:
 
 
     def get_idle_crewmate(self):
-        return self.idle_crewmates.pop(0)
-    def get_available_crewmate(self):
-        if self.get_idle_crewmate():
+        if self.idle_crewmates:
             return self.idle_crewmates.pop(0)
+        else:
+            return False
+
+    def get_available_crewmate(self):
+        idle_crewmate = self.get_idle_crewmate()
+        if idle_crewmate:
+            return idle_crewmate
+
 
         elif self.available_crewmates:
           return self.available_crewmates.pop(0)
@@ -282,8 +288,9 @@ class Bot:
             return False
 
     def get_fixed_crewmate(self):
-        if self.get_available_crewmate():
-            return self.get_available_crewmate()
+        available_crewmate = self.get_available_crewmate()
+        if available_crewmate:
+            return available_crewmate
 
         else:
             return self.fixed_crewmates.pop(0)
