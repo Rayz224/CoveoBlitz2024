@@ -216,8 +216,17 @@ class Bot:
 # Logique de tir des débris
     def get_debris_id(self, game_message: GameMessage, my_ship):
         debris = [debris for debris in game_message.debris if debris.debrisType != DebrisType.Small]
+        rockets = [rockets for rockets in game_message.rockets]
         if len(debris) == 0:
             return None
+        
+        #TODO: Besoin de 2 balles, donc faire attention
+        for rocket in rockets:
+            for t in range(300):
+                distance = ((rocket.position.x + rocket.velocity.x * t - my_ship.worldPosition.x) ** 2 + (rocket.position.y + rocket.velocity.y * t - my_ship.worldPosition.y) ** 2) ** 0.5
+
+                if distance <= rocket.radius + game_message.constants.ship.stations.shield.shieldRadius:
+                    return debri
 
         for debri in debris:
             for t in range(300):
