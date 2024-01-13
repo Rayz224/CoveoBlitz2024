@@ -22,7 +22,9 @@ class Bot:
     fixed_crewmates = []
     available_crewmates = []
     idle_crewmates = []
-    station_left_unoccupied = None
+
+    crewMateStations = {}
+
     angleLastTick = 999
 
     first_run = True
@@ -36,7 +38,15 @@ class Bot:
         return self.get_crewmate_to_station(self.ship_helms[0], 2, 2)
 
     def go_back_to_work(self, crewmate, my_ship):
-        return CrewMoveAction(crewmate, self.get_station(self.station_left_unoccupied, my_ship.stations.turrets + my_ship.stations.shields))
+        print(self.crewMateStations)
+        return CrewMoveAction(crewmate, self.crewMateStations.get(crewmate).gridPosition)
+
+    def get_station(self, id):
+        for station in self.current_my_ship.stations.turrets + self.current_my_ship.stations.turrets:
+            if station.id == id:
+                return station
+        return None        
+
 
     def get_to_station(self, crewmate, station):
         return CrewMoveAction(crewmate.id, station.gridPosition)
@@ -90,15 +100,15 @@ class Bot:
         if self.first_run:
             self.get_ship_blueprint(my_ship)
             self.get_ship_weapons_type(my_ship)
-            self.first_run = False
             # Find who's not doing anything and try to give them a job?
             self.idle_crewmates = [crewmate for crewmate in my_ship.crew if
                                    crewmate.currentStation is None and crewmate.destination is None]
             self.begin_allowing_crewmates(my_ship, actions)
+            self.first_run = False
 
         # Check radar if someone is available every x ticks
-        # if (game_message.currentTickNumber % self.radarInterval == 0):
-        #     actions.append(self.get_crewmate_to_station(self.ship_radars[0], 2, 2))
+        if (game_message.currentTickNumber % self.radarInterval == 0):
+            actions.append(self.get_crewmate_to_station(self.ship_radars[0], 2, 2))
 
         operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
         for turret_station in operatedTurretStations:
@@ -212,7 +222,7 @@ class Bot:
                         rocket.position.y + rocket.velocity.y * t - my_ship.worldPosition.y) ** 2) ** 0.5
 
                 if distance <= rocket.radius + game_message.constants.ship.stations.shield.shieldRadius:
-                    return debri
+                    return rocket
 
         for debri in debris:
             for t in range(300):
@@ -340,25 +350,30 @@ class Bot:
         return False
 
     def get_crewmate_to_station(self, station, priority, station_priority):
+        print("test")
         if priority == 0:
             crewmate = self.get_idle_crewmate(station)
             if not crewmate: return None
             self.adjust_priority(crewmate, station_priority)
+            if self.first_run:
+                self.crewMateStations[crewmate.id] = station
             return self.get_to_station(crewmate, station)
         elif priority == 1:
-            if self.get_available_crewmate(station):
-                crewmate = self.get_available_crewmate(station)
-                self.station_left_unoccupied = crewmate.currentStation
+            crewmate = self.get_available_crewmate(station)
+            if crewmate:
                 self.adjust_priority(crewmate, station_priority)
+                if self.first_run:
+                    self.crewMateStations[crewmate.id] = station
                 return self.get_to_station(crewmate, station)
             else:
                 return None
 
         elif priority == 2:
-            if self.get_fixed_crewmate(station):
-                crewmate = self.get_fixed_crewmate(station)
-                self.station_left_unoccupied = crewmate.currentStation
+            crewmate = self.get_fixed_crewmate(station)
+            if crewmate:
                 self.adjust_priority(crewmate, station_priority)
+                if self.first_run:
+                    self.crewMateStations[crewmate.id] = station
                 return self.get_to_station(crewmate, station)
             else:
                 return None
