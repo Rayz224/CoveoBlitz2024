@@ -215,11 +215,17 @@ class Bot:
         return actions
 
 # Logique de tir des débris
-    def get_debris_id(self, game_message: GameMessage):
-        debris = [debris for debris in game_message.debris]
+    def get_debris_id(self, game_message: GameMessage, my_ship):
+        debris = [debris for debris in game_message.debris if debris.debrisType != DebrisType.Small]
         if len(debris) == 0:
             return None
-        return random.choice(debris)
+
+        for debri in debris:
+            for t in range(300):
+                distance = ((debri.position.x + debri.velocity.x * t - my_ship.worldPosition.x) ** 2 + (debri.position.y + debri.velocity.y * t - my_ship.worldPosition.y) ** 2) ** 0.5
+
+                if distance <= debri.radius + game_message.constants.ship.stations.shield.shieldRadius:
+                    return debri
 
     def smallestWhichIsntNegativeOrNan(self, numbers):
         smallest = math.inf
