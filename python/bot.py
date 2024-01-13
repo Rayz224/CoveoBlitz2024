@@ -28,7 +28,7 @@ class Bot:
     angleLastTick = 999
 
     first_run = True
-
+    crewmate_at_shield = False
     activated_radar_last_tick = False
 
     def __init__(self):
@@ -45,7 +45,7 @@ class Bot:
         for station in self.current_my_ship.stations.turrets + self.current_my_ship.stations.turrets:
             if station.id == id:
                 return station
-        return None        
+        return None
 
 
     def get_to_station(self, crewmate, station):
@@ -85,9 +85,6 @@ class Bot:
         """
         Here is where the magic happens, for now the moves are not very good. I bet you can do better ;)
         """
-        """print(self.fixed_crewmates)
-        print(self.available_crewmates)
-        print(self.idle_crewmates)"""
 
         self.current_game_message = game_message
         actions = []
@@ -109,6 +106,16 @@ class Bot:
         # Check radar if someone is available every x ticks
         if (game_message.currentTickNumber % self.radarInterval == 0):
             actions.append(self.get_crewmate_to_station(self.ship_radars[0], 2, 2))
+
+        if self.shield_critical(my_ship) and not self.crewmate_at_shield:
+            print(self.fixed_crewmates)
+            print(self.available_crewmates)
+            print(self.idle_crewmates)
+            actions.append(self.get_crewmate_to_station(self.ship_shield_station[0], 2, 1))
+            self.crewmate_at_shield = True
+        #
+        if my_ship.currentShield == 150 and self.crewmate_at_shield:
+            actions.append
 
         operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
         for turret_station in operatedTurretStations:
@@ -289,12 +296,8 @@ class Bot:
     def do_we_have_that_weapon(self, turretType):
         return turretType in self.ship_weapons_type
 
-    # def shield_critical(self, my_ship: Ship):
-    #     return my_ship.currentShield <= 0
-    #
-    # # def shield_gestion(self, my_ship: Ship):
-    # #     if self.shield_critical(my_ship):
-    # #         self.get_to_station(self.)
+    def shield_critical(self, my_ship: Ship):
+        return my_ship.currentShield <= 0
 
     def get_idle_crewmate(self, station):
         if self.idle_crewmates:
@@ -309,14 +312,11 @@ class Bot:
         idle_crewmate = self.get_idle_crewmate(station)
         if idle_crewmate:
             return idle_crewmate
-
         elif self.available_crewmates:
             for crewmate in self.available_crewmates:
                 if self.can_crewmate_go_to_station(crewmate, station):
                     self.available_crewmates.remove(crewmate)
                     return crewmate
-
-        else:
             print("No available crewmate can go to that station")
             return False
 
@@ -350,7 +350,6 @@ class Bot:
         return False
 
     def get_crewmate_to_station(self, station, priority, station_priority):
-        print("test")
         if priority == 0:
             crewmate = self.get_idle_crewmate(station)
             if not crewmate: return None
@@ -360,23 +359,19 @@ class Bot:
             return self.get_to_station(crewmate, station)
         elif priority == 1:
             crewmate = self.get_available_crewmate(station)
-            if crewmate:
-                self.adjust_priority(crewmate, station_priority)
-                if self.first_run:
-                    self.crewMateStations[crewmate.id] = station
-                return self.get_to_station(crewmate, station)
-            else:
-                return None
+            if not crewmate: return None
+            self.adjust_priority(crewmate, station_priority)
+            if self.first_run:
+                self.crewMateStations[crewmate.id] = station
+            return self.get_to_station(crewmate, station)
 
         elif priority == 2:
             crewmate = self.get_fixed_crewmate(station)
-            if crewmate:
-                self.adjust_priority(crewmate, station_priority)
-                if self.first_run:
-                    self.crewMateStations[crewmate.id] = station
-                return self.get_to_station(crewmate, station)
-            else:
-                return None
+            if not crewmate: return None
+            self.adjust_priority(crewmate, station_priority)
+            if self.first_run:
+                self.crewMateStations[crewmate.id] = station
+            return self.get_to_station(crewmate, station)
 
     def adjust_priority(self, crewmate, station_priority):
         if station_priority == 0:
