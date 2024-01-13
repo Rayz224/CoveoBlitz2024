@@ -51,3 +51,6 @@ class Bot:
 
         # You can clearly do better than the random actions above! Have fun!
         return actions
+    
+    def get_to_station(self, crewmate, station_to_move_to):
+        return CrewMoveAction(crewmate.id, station_to_move_to.stationPosition)
