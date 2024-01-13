@@ -12,6 +12,25 @@ class Bot:
     def get_to_station(self, crewmate, station_to_move_to):
         return CrewMoveAction(crewmate.id, station_to_move_to.stationPosition)
     
+    def get_station(self, id, stations):
+        for station in stations:
+            if(station.id == id):
+                return station
+        raise Exception("ds")
+        return None
+    
+    def get_min_distance_turret_type(self, stationDistances, my_ship, turret_types):
+        min_distance = float('inf')
+        min_station = None
+
+        for stationDistance in stationDistances:
+            distance = stationDistance.distance
+            print(self.get_station(stationDistance.stationId, my_ship.stations.turrets).turretType)
+            if distance < min_distance and (turret_types.count(self.get_station(stationDistance.stationId, my_ship.stations.turrets).turretType) >= 1):
+                min_distance = distance
+                min_station = stationDistance
+        return min_station
+    
     def get_min_distance_station(self, stations):
         min_distance = float('inf')
         min_station = None
@@ -24,14 +43,18 @@ class Bot:
 
         return min_station
     
-    def begin_allowing_cremates(self, my_ship):
-        actions = []
+    def begin_allowing_cremates(self, my_ship, actions):
+        occupiedTurretCount = 0
+        occupiedShieldCount = 0
         for crewmate in my_ship.crew:
-            visitable_stations = crewmate.distanceFromStations.shields + crewmate.distanceFromStations.turrets + crewmate.distanceFromStations.helms + crewmate.distanceFromStations.radars
-            
-            station_to_move_to = self.get_min_distance_station(crewmate.distanceFromStations.turrets)
-            actions.append(self.get_to_station(crewmate, station_to_move_to))
-        return actions
+            if occupiedTurretCount < 2:
+                station_to_move_to = self.get_min_distance_turret_type(crewmate.distanceFromStations.turrets, my_ship, [TurretType.Normal, TurretType.EMP])
+                actions.append(self.get_to_station(crewmate, station_to_move_to))
+                occupiedTurretCount += 1
+            elif occupiedShieldCount < 2:
+                station_to_move_to = self.get_min_distance_station(crewmate.distanceFromStations.shields)
+                actions.append(self.get_to_station(crewmate, station_to_move_to))
+                occupiedShieldCount += 1
 
 
     def get_next_move(self, game_message: GameMessage):
@@ -49,7 +72,7 @@ class Bot:
                           crewmate.currentStation is None and crewmate.destination is None]
 
         if len(idle_crewmates) == len(my_ship.crew):
-            actions = self.begin_allowing_cremates(my_ship)
+            self.begin_allowing_cremates(my_ship, actions)
 
         # Now crew members at stations should do something!
         operatedTurretStations = [station for station in my_ship.stations.turrets if station.operator is not None]
