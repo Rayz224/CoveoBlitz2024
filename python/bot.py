@@ -27,7 +27,7 @@ class Bot:
                 return station
         raise Exception("ds")
         return None
-    
+
     def get_min_distance_turret_type(self, stationDistances, my_ship, occupiedStationIds):
         min_distance = float('inf')
         min_station = None
@@ -43,7 +43,7 @@ class Bot:
                     min_station = stationDistance
                     return min_station
         return None
-    
+
     def get_min_distance_station(self, stationDistances, occupiedStationIds):
         min_distance = float('inf')
         min_station = None
@@ -93,13 +93,6 @@ class Bot:
             self.get_ship_weapons_type(my_ship)
             self.first_run = False
 
-
-        actions = []
-
-
-        # print(other_ships_ids)
-        # print(game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]])
-
         # Find who's not doing anything and try to give them a job?
         idle_crewmates = [crewmate for crewmate in my_ship.crew if
                           crewmate.currentStation is None and crewmate.destination is None]
@@ -115,7 +108,9 @@ class Bot:
                     pass
                 else:
                     # Aim the turret
-                    actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(self.get_debris_id(game_message), turret_station, game_message)))
+                    # actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(self.get_debris_id(game_message), turret_station, game_message)))
+                    actions.append(TurretLookAtAction(turret_station.id, game_message.shipsPositions[
+                        other_ships_ids[self.enemy_ship_scan_index]]))
                     # Shoot!
                     actions.append(TurretShootAction(turret_station.id))
 
@@ -129,7 +124,7 @@ class Bot:
                         other_ships_ids[self.enemy_ship_scan_index]]))
                     # Charge the turret.
                     actions.append(TurretChargeAction(turret_station.id))
-                elif 0 < turret_station.charge < 100:
+                elif 0 < turret_station.charge < 50:
                     # Charge the turret.
                     actions.append(TurretChargeAction(turret_station.id))
                 else:
