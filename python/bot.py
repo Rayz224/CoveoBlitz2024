@@ -13,7 +13,7 @@ class Bot:
     ship_weapons_type = []
     radarInterval = 100
 
-    turret_priority = [TurretType.Cannon, TurretType.EMP, TurretType.Normal, TurretType.Sniper, TurretType.Fast]
+    turret_priority = [TurretType.Cannon, TurretType.Normal, TurretType.EMP, TurretType.Sniper, TurretType.Fast]
     EMP_occupied = False
 
     current_game_message = None
@@ -47,14 +47,14 @@ class Bot:
                 return station
         return None
 
-
     def get_to_station(self, crewmate, station):
         return CrewMoveAction(crewmate.id, station.gridPosition)
 
     def get_next_turret_to_assign(self, my_ship, occupiedStationIds, stations_no_crewmate):
         for turret_type in self.turret_priority:
             for station in my_ship.stations.turrets:
-                if turret_type == station.turretType and occupiedStationIds.count(station.id) == 0 and stations_no_crewmate.count(station) == 0:
+                if turret_type == station.turretType and occupiedStationIds.count(
+                        station.id) == 0 and stations_no_crewmate.count(station) == 0:
                     if turret_type == TurretType.EMP and self.EMP_occupied == False:
                         self.EMP_occupied = True
                         return station
@@ -65,14 +65,11 @@ class Bot:
     def begin_allowing_crewmates(self, my_ship, actions):
         occupiedStationIds = []
         occupiedTurretCount = 0
-        occupiedShieldCount = 0
         stations_no_crewmate = []
 
         while self.idle_crewmates:
             if occupiedTurretCount < 4:
                 station_to_move_to = self.get_next_turret_to_assign(my_ship, occupiedStationIds, stations_no_crewmate)
-                print(station_to_move_to)
-                # actions.append(self.get_to_station(crewmate, station_to_move_to))
                 crewmate_move_action = self.get_crewmate_to_station(station_to_move_to, 0, 1)
                 if crewmate_move_action is not None:
                     actions.append(crewmate_move_action)
@@ -122,10 +119,16 @@ class Bot:
             if turret_station.turretType == "NORMAL":
                 if turret_station.charge < 0:
                     pass
-                else:
+                elif turret_station.charge == 0:
                     # Aim the turret
-                    actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(
-                        self.get_debris_id(game_message, my_ship), turret_station, game_message, other_ships_ids)))
+                    actions.append(TurretLookAtAction(turret_station.id, game_message.shipsPositions[
+                        other_ships_ids[self.enemy_ship_scan_index]]))
+                    # Charge the turret.
+                    actions.append(TurretChargeAction(turret_station.id))
+                elif 0 < turret_station.charge < 60:
+                    # Charge the turret.
+                    actions.append(TurretChargeAction(turret_station.id))
+                else:
                     # Shoot!
                     actions.append(TurretShootAction(turret_station.id))
 
@@ -133,18 +136,13 @@ class Bot:
 
                 if turret_station.charge < 0:
                     pass
-                elif turret_station.charge == 0:
-                    # Aim the turret
-                    actions.append(TurretLookAtAction(turret_station.id, game_message.shipsPositions[
-                        other_ships_ids[self.enemy_ship_scan_index]]))
-                    # Charge the turret.
-                    actions.append(TurretChargeAction(turret_station.id))
-                elif 0 < turret_station.charge < 50:
-                    # Charge the turret.
-                    actions.append(TurretChargeAction(turret_station.id))
                 else:
+                    # Aim the turret
+                    actions.append(TurretLookAtAction(turret_station.id, self.get_debris_interception_point(
+                        self.get_debris_id(game_message, my_ship), turret_station, game_message, other_ships_ids)))
                     # Shoot!
                     actions.append(TurretShootAction(turret_station.id))
+
             elif turret_station.turretType == "FAST":
 
                 if turret_station.charge < 0:
@@ -185,10 +183,10 @@ class Bot:
 
         operatedRadarStation = [station for station in my_ship.stations.radars if station.operator is not None]
         isGoingBackToWork = False
-        if(self.activated_radar_last_tick):
+        if self.activated_radar_last_tick:
             for radar_station in operatedRadarStation:
                 while game_message.ships[other_ships_ids[self.enemy_ship_scan_index][
-                                         5: len(other_ships_ids[self.enemy_ship_scan_index]) - 2]].currentHealth <= 0:
+                                         5:len(other_ships_ids[self.enemy_ship_scan_index]) - 2]].currentHealth <= 0:
                     self.enemy_ship_scan_index = self.enemy_ship_scan_index + 1 % len(game_message.other_ships_ids)
                 self.focus_enemy()
                 print("gobacktowork")
@@ -196,7 +194,7 @@ class Bot:
                 self.activated_radar_last_tick = False
                 isGoingBackToWork = True
 
-        if(not isGoingBackToWork):
+        if not isGoingBackToWork:
             for radar_station in operatedRadarStation:
                 print("radar")
                 actions.append(RadarScanAction(radar_station.id, other_ships_ids[self.enemy_ship_scan_index]))
@@ -204,14 +202,13 @@ class Bot:
 
         operatedHelmStation = [station for station in my_ship.stations.helms if station.operator is not None]
         for helm_station in operatedHelmStation:
-            actions.append(ShipLookAtAction(helm_station.id,
-                                            game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]]))
-            if (self.angleLastTick == 999):
+            actions.append(ShipLookAtAction(game_message.shipsPositions[other_ships_ids[self.enemy_ship_scan_index]]))
+            if self.angleLastTick == 999:
                 self.angleLastTick = my_ship.orientationDegrees
-            elif (self.angleLastTick != my_ship.orientationDegrees):
+            elif self.angleLastTick != my_ship.orientationDegrees:
                 self.angleLastTick = my_ship.orientationDegrees
             else:
-                self.go_back_to_work(helm_station.operator, my_ship)
+                actions.append(self.go_back_to_work(helm_station.operator, my_ship))
                 self.angleLastTick = 999
         return actions
 
